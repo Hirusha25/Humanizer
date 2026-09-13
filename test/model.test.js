@@ -43,5 +43,5 @@ test('length band, status, trimming and unfinished-sentence handling', () => {
   assert.equal(trimToWords(long, 9), 'One two three four. Five six seven eight.');
   assert.equal(dropUnfinishedSentence('It works well. It also runs on the'), 'It works well.');
   assert.equal(dropUnfinishedSentence('It works well.'), 'It works well.');
-  assert.equal(cleanModelOutput('The team met on Monday and agreed on the plan. Then they went to the', 'The team met on Monday and agreed on the plan.'), 'The team met on Monday and agreed on the plan.');
+  assert.equal(cleanModelOutput('The team met on Monday and agreed on the plan. Then they went to the', 'On Monday the team got together and signed off on the plan.'), 'The team met on Monday and agreed on the plan.');
 });
