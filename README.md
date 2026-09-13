@@ -19,6 +19,21 @@ An offline, rule-based **AI text humanizer** in the spirit of StealthWriter. Pas
 - **Regenerate** for a different rewrite of the same text; **best-of-4** picks the lowest-scoring attempt automatically.
 - Deterministic: same input + same seed = same output.
 
+## Deep rewrite (local language model)
+
+The fourth mode, **Deep rewrite**, does what a rule engine cannot: it re-generates every paragraph with a small instruction-tuned language model running inside the browser tab via [transformers.js](https://github.com/huggingface/transformers.js), then runs the rules on top to strip any tells the model re-introduces. There is still no API and no account: the model weights are downloaded once from the Hugging Face hub (270 MB to 1.1 GB depending on the model you pick), cached by the browser, and everything after that runs on your machine.
+
+| Model | Download | Notes |
+| --- | --- | --- |
+| SmolLM2 360M Instruct | ≈ 270 MB | Fastest; usable on CPU |
+| Qwen2.5 0.5B Instruct (default) | ≈ 330 MB | Best balance |
+| Llama 3.2 1B Instruct | ≈ 800 MB | Better rewrites; needs WebGPU |
+| SmolLM2 1.7B Instruct | ≈ 1.1 GB | Best quality; needs WebGPU and 4 GB+ free memory |
+
+WebGPU (Chrome, Edge, recent Safari) makes generation 5 to 20 times faster than the CPU fallback. Paragraphs stream into the output pane as they are written; **Stop** interrupts. If a paragraph comes back unusable (refusal, echo, wrong length) it falls back to the Stealth rules for that paragraph. The Claude-hosted artifact copy cannot download models because of its content-security policy; use the GitHub Pages site or `npm start`.
+
+These are general-purpose small models, not models fine-tuned against detectors. They produce genuinely re-written text with fresh sentence structures and word choices, which is what perplexity-based detectors respond to, but no verdict is guaranteed. Read the output: small models occasionally drop or garble a detail.
+
 ## Run it
 
 ```bash
@@ -87,6 +102,8 @@ src/engine/diff.js                 word-level diff for change highlighting
 src/engine/dictionaries/           phrases, openers, contractions, synonyms
 src/engine/transforms/             one pass per file: markdown, punctuation, filler,
                                    openers, phrases, contractions, synonyms, rhythm, voice
+src/engine/model/                  Deep rewrite: prompt.js (pure helpers), worker.js (transformers.js
+                                   in a Web Worker), client.js (promise API + deepRewrite loop)
 test/                              node --test suites
 ```
 

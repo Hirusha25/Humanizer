@@ -25,6 +25,20 @@
 
     <div class="modes" role="tablist" aria-label="Rewrite strength" id="modes"></div>
 
+    <section class="model-panel" id="model-panel" hidden>
+      <div class="model-row">
+        <label class="model-select">
+          <span class="lbl">Model</span>
+          <select id="model-select"></select>
+        </label>
+        <div class="model-meta" id="model-meta"></div>
+        <button id="model-load" class="btn" type="button">Download &amp; load</button>
+        <button id="model-cancel" class="btn ghost" type="button" hidden>Stop</button>
+      </div>
+      <div class="model-progress" id="model-progress" hidden><i></i></div>
+      <p class="model-status muted" id="model-status">Runs a small open language model inside this tab. Downloaded once, then cached by your browser. Nothing is sent anywhere.</p>
+    </section>
+
     <section class="panels">
       <div class="panel">
         <div class="panel-head">
