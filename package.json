@@ -1,0 +1,19 @@
+{
+  "name": "humanizer",
+  "version": "0.1.0",
+  "description": "Offline, rule-based AI text humanizer (StealthWriter-style) with no external APIs.",
+  "type": "module",
+  "main": "src/engine/index.js",
+  "bin": {
+    "humanize": "src/cli.js"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js",
+    "cli": "node src/cli.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

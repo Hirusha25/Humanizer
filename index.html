@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Humanizer · Make AI text read like a person wrote it</title>
+  <meta name="description" content="Offline AI text humanizer. Rewrites machine-sounding text so it reads naturally. No API, no account, nothing leaves your browser." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%237c5cff'/%3E%3Ctext x='32' y='44' font-size='36' font-family='system-ui' font-weight='700' fill='white' text-anchor='middle'%3EH%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="./"><span class="logo">H</span><span>Humanizer</span></a>
+    <nav class="nav">
+      <span class="pill pill-ok" title="The rewrite engine runs in this tab. No network requests are made.">100% offline · no API</span>
+      <button id="theme" class="icon-btn" type="button" aria-label="Toggle theme">☾</button>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <h1>Humanize AI text</h1>
+      <p>Paste text from ChatGPT, Claude, Gemini or anything else. Get a rewrite that reads like a person wrote it: varied rhythm, plain words, no “delve”, no em dashes. Everything runs in your browser.</p>
+    </section>
+
+    <div class="modes" role="tablist" aria-label="Rewrite strength" id="modes"></div>
+
+    <section class="panels">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Your text</h2>
+          <div class="tools">
+            <button id="sample" class="btn ghost" type="button">Try a sample</button>
+            <button id="paste" class="btn ghost" type="button">Paste</button>
+            <button id="clear" class="btn ghost" type="button">Clear</button>
+          </div>
+        </div>
+        <textarea id="input" spellcheck="true" placeholder="Paste your text here…"></textarea>
+        <div class="panel-foot">
+          <span id="in-count" class="muted">0 words</span>
+          <div class="score" id="in-score" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Humanized</h2>
+          <div class="tools">
+            <label class="check"><input type="checkbox" id="highlight" checked /> Highlight changes</label>
+            <button id="regen" class="btn ghost" type="button" title="Try a different rewrite of the same text">↻ Regenerate</button>
+            <button id="copy" class="btn ghost" type="button">Copy</button>
+          </div>
+        </div>
+        <div id="output" class="output" aria-live="polite">
+          <p class="placeholder">Your rewrite appears here. Click any word in the result to swap it for an alternative.</p>
+        </div>
+        <div class="panel-foot">
+          <span id="out-count" class="muted"></span>
+          <div class="score" id="out-score" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button id="run" class="btn primary" type="button">Humanize</button>
+      <details class="settings">
+        <summary>Settings</summary>
+        <div class="settings-grid">
+          <label class="check"><input type="checkbox" id="opt-contractions" checked /> Use contractions</label>
+          <label class="check"><input type="checkbox" id="opt-synonyms" checked /> Swap everyday words</label>
+          <label class="check"><input type="checkbox" id="opt-rhythm" checked /> Restructure sentences</label>
+          <label class="check"><input type="checkbox" id="opt-filler" checked /> Drop filler sentences</label>
+          <label class="check"><input type="checkbox" id="opt-markdown" checked /> Strip markdown (**bold**, # headings)</label>
+          <label class="check"><input type="checkbox" id="opt-quotes" checked /> Never change quoted text</label>
+          <label class="check"><input type="checkbox" id="opt-best" checked /> Pick the best of 4 attempts</label>
+        </div>
+      </details>
+    </div>
+
+    <section class="report" id="report" hidden>
+      <div class="report-head">
+        <h2>What changed</h2>
+        <p id="report-summary" class="muted"></p>
+      </div>
+      <div class="report-grid">
+        <div>
+          <h3>Before</h3>
+          <div id="report-before" class="features"></div>
+        </div>
+        <div>
+          <h3>After</h3>
+          <div id="report-after" class="features"></div>
+        </div>
+      </div>
+      <p class="note">The score is a heuristic built from the signals public detectors are known to weigh: sentence-length variation, formal connectors, AI-tell vocabulary, contraction rate and em dashes. It is a guide for editing, not a copy of GPTZero, Turnitin or Originality. Always read the result before you use it.</p>
+    </section>
+
+    <section class="faq">
+      <h2>How it works</h2>
+      <div class="faq-grid">
+        <div class="card"><h3>Kills the tells</h3><p>Hundreds of phrases that language models over-use (“delve”, “tapestry”, “it is important to note”, “in today’s fast-paced world”) are swapped for plain alternatives. Em dashes and semicolons become commas or full stops.</p></div>
+        <div class="card"><h3>Breaks the rhythm</h3><p>Detectors flag text where every sentence is the same length. Long sentences get split at natural clause boundaries, short ones get joined, and some clauses are flipped around.</p></div>
+        <div class="card"><h3>Sounds like a person</h3><p>Contractions, dropped throat-clearing (“Furthermore, …”), and near-synonym swaps make the word choice less predictable, which is exactly what perplexity-based detectors measure.</p></div>
+        <div class="card"><h3>Private by design</h3><p>No API keys, no accounts, no uploads. The engine is a few hundred lines of JavaScript that runs in this tab. It also works from the command line.</p></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>Humanizer · open source · rule-based, offline</span>
+    <span class="muted">Tip: paste the output into your favourite detector and use “Regenerate” or click-to-swap until you are happy.</span>
+  </footer>
+
+  <div id="popover" class="popover" hidden></div>
+  <div id="toast" class="toast" hidden></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
