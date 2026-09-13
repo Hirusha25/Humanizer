@@ -1,6 +1,6 @@
 // Pure helpers for the local-model ("Deep rewrite") mode. No browser APIs here,
 // so everything in this file is unit-tested in Node.
-import { splitBlocks, splitLinePrefix, wordCount } from '../tokenize.js';
+import { splitBlocks, splitLinePrefix, splitSentences, wordCount } from '../tokenize.js';
 
 /** Models known to ship ONNX weights that run in transformers.js. Sizes are the q4 download. */
 export const MODELS = [
@@ -16,7 +16,8 @@ export const SYSTEM_PROMPT = [
   'Keep every fact, name, number, quotation and claim exactly. Do not add new facts, opinions or examples. Keep roughly the same length.',
   'Style: mix short and long sentences; use everyday words and contractions; prefer active voice; you may reorder ideas and merge or split sentences;',
   'avoid words like delve, leverage, utilize, tapestry, robust, crucial, furthermore, moreover, additionally, in conclusion; never use em dashes, bullet points, headings or lists.',
-  'Reply with only the rewritten paragraph. No introduction, no notes, no quotation marks around it.',
+  'Do not add personal experience, sources, opinions or commentary that is not in the original.',
+  'Reply with only the rewritten paragraph. No introduction, no notes, no comments about length or about the rewrite, no quotation marks around it.',
 ].join(' ');
 
 /** Acceptable output length: within 20% of the original word count. */
@@ -30,7 +31,7 @@ export function buildMessages(paragraph, { strict = false } = {}) {
   const { words, min, max } = lengthBounds(paragraph);
   const target = `The paragraph is ${words} words. Your rewrite must be between ${min} and ${max} words: same length, not longer.`;
   const user = strict
-    ? `${paragraph.trim()}\n\n${target} Your previous attempt was the wrong length. Rewrite it again, keeping every fact, and output only the paragraph.`
+    ? `${paragraph.trim()}\n\n${target} Keep every fact. Output only the paragraph itself, with no comments.`
     : `${paragraph.trim()}\n\n(${target})`;
   return [
     { role: 'system', content: SYSTEM_PROMPT },
@@ -91,6 +92,28 @@ export function splitForModel(text) {
 }
 
 const REFUSAL = /\b(as an ai|i cannot|i can't|i'm sorry|i am sorry|language model)\b/i;
+// Sentences in which the model talks about the rewrite instead of doing it.
+const META = /\b(?:my (?:initial|previous|first|earlier|revised|new|final) (?:response|attempt|answer|rewrite|version|reply|draft)|(?:this|the|my|your) (?:rewrite|rewritten|revised|paraphrased|edited|new|final) (?:paragraph|text|version|response|draft)?\s*(?:is|has|was|contains|keeps|stays|comes|meets|maintains|preserves|includes|falls|now)|i (?:have|'ve) (?:kept|rewritten|rephrased|shortened|trimmed|reduced|maintained|preserved|made|ensured|tried|aimed|removed|changed|condensed)|i (?:kept|rewrote|rephrased|shortened|trimmed|reduced|maintained|preserved|ensured|tried|aimed|removed|condensed|made sure)|word count|words? (?:long|limit|count|total|target|range)|too long|too short|extra characters|characters? (?:long|count|limit)|as requested|as instructed|as asked|here (?:is|'s) (?:the|a|my|your)|(?:original|given|provided|source) (?:paragraph|text|passage)|same length|length (?:requirement|target|limit|band|constraint)|(?:between|within) \d+ and \d+ words|\b\d+ words\b|rewritten paragraph|the paragraph (?:above|below)|note that i|let me know if)\b/i;
+
+function contentWords(text) {
+  return (text.toLowerCase().match(/[a-z][a-z'-]{3,}/g) || []);
+}
+
+/** Drop sentences that comment on the rewrite and share little vocabulary with the original. */
+export function stripMetaCommentary(text, original) {
+  const vocab = new Set(contentWords(original));
+  const keepBlocks = [];
+  for (const block of text.split(/\n+/)) {
+    const kept = splitSentences(block).filter((sentence) => {
+      if (!META.test(sentence)) return true;
+      const words = contentWords(sentence);
+      const overlap = words.length ? words.filter((w) => vocab.has(w)).length / words.length : 0;
+      return overlap >= 0.5;
+    });
+    if (kept.length) keepBlocks.push(kept.join(' '));
+  }
+  return keepBlocks.join(original.includes('\n') ? '\n' : ' ');
+}
 const LEAD_IN = /^(?:(?:sure|certainly|of course|okay|here(?:'s| is)[^\n:]*|rewritten (?:paragraph|text|version)|revised (?:paragraph|text|version)|paraphrased? (?:paragraph|text|version)|output|answer)\s*[:.!-]?\s*)+/i;
 const TRAIL_NOTE = /\n+\s*(?:note|notes|explanation|changes made|i (?:kept|changed|made))\b[\s\S]*$/i;
 
@@ -108,6 +131,7 @@ export function cleanModelOutput(raw, original) {
   s = s.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/^\s*[-*•]\s+/gm, '');
   s = s.replace(/\s*[—–]\s*/g, ', ').replace(/[ \t]+/g, ' ').replace(/\n{2,}/g, '\n').trim();
   s = dropUnfinishedSentence(s);
+  s = stripMetaCommentary(s, original);
   if (!s || REFUSAL.test(s)) return null;
   const want = wordCount(original);
   const got = wordCount(s);

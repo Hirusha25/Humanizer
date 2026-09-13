@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildMessages, maxTokensFor, splitForModel, cleanModelOutput, joinUnits, lengthBounds, lengthStatus, trimToWords, dropUnfinishedSentence, MODELS, DEFAULT_MODEL } from '../src/engine/model/prompt.js';
+import { buildMessages, maxTokensFor, splitForModel, cleanModelOutput, joinUnits, lengthBounds, lengthStatus, trimToWords, dropUnfinishedSentence, stripMetaCommentary, MODELS, DEFAULT_MODEL } from '../src/engine/model/prompt.js';
 
 test('model list has a valid default', () => {
   assert.ok(MODELS.some((m) => m.id === DEFAULT_MODEL));
@@ -11,7 +11,7 @@ test('messages carry the system prompt and the paragraph', () => {
   assert.equal(m[0].role, 'system');
   assert.ok(m[1].content.startsWith('Some text here now.'));
   assert.match(m[1].content, /4 words/);
-  assert.match(buildMessages('a b c d e', { strict: true })[1].content, /previous attempt/);
+  assert.match(buildMessages('a b c d e', { strict: true })[1].content, /no comments/);
   assert.equal(maxTokensFor('one two three four five'), 32);
 });
 
@@ -44,4 +44,15 @@ test('length band, status, trimming and unfinished-sentence handling', () => {
   assert.equal(dropUnfinishedSentence('It works well. It also runs on the'), 'It works well.');
   assert.equal(dropUnfinishedSentence('It works well.'), 'It works well.');
   assert.equal(cleanModelOutput('The team met on Monday and agreed on the plan. Then they went to the', 'On Monday the team got together and signed off on the plan.'), 'The team met on Monday and agreed on the plan.');
+});
+
+test('model commentary about the rewrite is removed, real content survives', () => {
+  const original = 'I would evaluate any change based on children\'s participation and wellbeing, including nonverbal responses. I would respond promptly to hazards and discuss decisions with the team.';
+  const raw = 'In my view, any change should be judged on how children take part and how well they are, including nonverbal cues. Hazards get a quick response and decisions get discussed with the team.\n\nMy initial response contained extra characters making it too long.';
+  const out = cleanModelOutput(raw, original);
+  assert.ok(out && !/initial response/.test(out), out);
+  assert.ok(/nonverbal cues/.test(out));
+  // a sentence that legitimately talks about rewriting stays when it echoes the source
+  const essay = 'Editors often rewrite the paragraph twice. The second rewrite is usually shorter than the original paragraph.';
+  assert.equal(stripMetaCommentary('Editors tend to rewrite the paragraph twice. The second rewrite is usually shorter than the original paragraph.', essay).split('. ').length, 2);
 });
