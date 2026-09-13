@@ -13,17 +13,22 @@ const SAMPLE = `In today's fast-paced digital landscape, businesses must leverag
 
 However, it is essential to navigate the complexities of implementation carefully. Organizations should conduct a comprehensive assessment of their existing infrastructure; moreover, they need to ensure that stakeholders are aligned with the strategic vision. Additionally, a robust framework for data governance is paramount. In conclusion, the journey toward digital transformation is not only a technological endeavor but also a cultural one, and it requires a holistic approach that encompasses people, processes, and technology.`;
 
-const state = { mode: localStorage.getItem('hz-mode') || 'balanced', seed: null, lastInput: '', result: null };
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch { /* storage unavailable */ } },
+};
+const state = { mode: store.get('hz-mode') || 'balanced', seed: null, lastInput: '', result: null };
 
 // ---------- theme ----------
-const savedTheme = localStorage.getItem('hz-theme');
+const savedTheme = store.get('hz-theme');
 if (savedTheme) document.documentElement.dataset.theme = savedTheme;
-const syncThemeIcon = () => { els.theme.textContent = document.documentElement.dataset.theme === 'light' ? '☾' : '☀'; };
+const currentTheme = () => document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+const syncThemeIcon = () => { els.theme.textContent = currentTheme() === 'light' ? '☾' : '☀'; };
 syncThemeIcon();
 els.theme.addEventListener('click', () => {
-  const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  const next = currentTheme() === 'light' ? 'dark' : 'light';
   document.documentElement.dataset.theme = next;
-  localStorage.setItem('hz-theme', next);
+  store.set('hz-theme', next);
   syncThemeIcon();
 });
 
@@ -35,7 +40,7 @@ for (const [key, m] of Object.entries(MODES)) {
   b.role = 'tab';
   b.dataset.mode = key;
   b.innerHTML = `<strong>${m.label}</strong><span>${m.description}</span>`;
-  b.addEventListener('click', () => { state.mode = key; localStorage.setItem('hz-mode', key); syncModes(); if (state.result) run(); });
+  b.addEventListener('click', () => { state.mode = key; store.set('hz-mode', key); syncModes(); if (state.result) run(); });
   els.modes.appendChild(b);
 }
 function syncModes() {
