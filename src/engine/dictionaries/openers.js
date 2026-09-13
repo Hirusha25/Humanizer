@@ -4,7 +4,7 @@ export const OPENERS = [
   [/^(?:However|Nevertheless|Nonetheless|That being said|Having said that|With that said|That said|Be that as it may),?\s+/i,
     ['But ', 'Still, ', 'That said, ', 'Then again, ', 'Even so, ', 'Though, ']],
   [/^(?:Furthermore|Moreover|Additionally|In addition|In addition to (?:this|that)|What is more|What's more|Also|Besides(?: this| that)?),?\s+/i,
-    ['Also, ', 'Plus, ', 'On top of that, ', 'And ', 'Then there is the fact that ', '']],
+    ['Also, ', 'Plus, ', 'On top of that, ', 'And ', '', '']],
   [/^(?:Therefore|Thus|Hence|Consequently|As a result|As such|Accordingly|For this reason|Because of this|For these reasons),?\s+/i,
     ['So ', 'So, ', 'Because of that, ', "That's why ", 'Which means ', 'This is why ']],
   [/^(?:In conclusion|To conclude|In summary|To summarize|To summarise|To sum up|In closing|All things considered|Taking everything into account|In the final analysis),?\s+/i,

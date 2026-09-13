@@ -83,9 +83,12 @@ export function analyze(text) {
   const repeatedStarts = Object.values(counts).filter((n) => n >= 3).reduce((a, n) => a + n - 2, 0);
   const repeatRatio = sentences.length ? repeatedStarts / sentences.length : 0;
 
+  // 10. Short sentences: human prose almost always has a few
+  const shortFrac = sentences.length ? lens.filter((n) => n <= 8).length / sentences.length : 0;
+
   const features = [
-    { key: 'tells', label: 'AI-tell vocabulary', weight: 0.24, value: ramp(tellDensity, 0, 2.5), detail: `${tells} tell phrase${tells === 1 ? '' : 's'} (${tellDensity.toFixed(1)} per 100 words)` },
-    { key: 'burstiness', label: 'Sentence rhythm', weight: 0.2, value: 1 - ramp(cv, 0.2, 0.6), detail: `length variation ${cv.toFixed(2)} (avg ${mean.toFixed(0)} words, ${sentences.length} sentences)` },
+    { key: 'tells', label: 'AI-tell vocabulary', weight: 0.22, value: ramp(tellDensity, 0, 2.5), detail: `${tells} tell phrase${tells === 1 ? '' : 's'} (${tellDensity.toFixed(1)} per 100 words)` },
+    { key: 'burstiness', label: 'Sentence rhythm', weight: 0.17, value: 1 - ramp(cv, 0.2, 0.6), detail: `length variation ${cv.toFixed(2)} (avg ${mean.toFixed(0)} words, ${sentences.length} sentences)` },
     { key: 'openers', label: 'Formal transitions', weight: 0.14, value: ramp(openerRatio, 0, 0.3), detail: `${formalOpeners} of ${sentences.length} sentences open with a formal connector` },
     { key: 'contractions', label: 'Contractions', weight: 0.14, value: 1 - ramp(contractionRatio, 0, 0.6), detail: `${present} used, ${uncontracted} left expanded` },
     { key: 'punctuation', label: 'Em dashes & semicolons', weight: 0.1, value: ramp(punctDensity, 0, 1.2), detail: `${emDashes} dash${emDashes === 1 ? '' : 'es'}, ${semicolons} semicolon${semicolons === 1 ? '' : 's'}` },
@@ -93,6 +96,7 @@ export function analyze(text) {
     { key: 'voice', label: 'Personal voice', weight: 0.06, value: 1 - ramp(personalDensity, 0, 3), detail: `${personal} first/second-person words` },
     { key: 'paragraphs', label: 'Paragraph uniformity', weight: 0.03, value: 1 - ramp(paraCv, 0.15, 0.5), detail: paraLens.length >= 3 ? `variation ${paraCv.toFixed(2)} across ${paraLens.length} paragraphs` : 'too few paragraphs to judge' },
     { key: 'repeats', label: 'Repeated openings', weight: 0.03, value: ramp(repeatRatio, 0, 0.3), detail: `${repeatedStarts} repeated sentence starts` },
+    { key: 'short', label: 'Short sentences', weight: 0.05, value: 1 - ramp(shortFrac, 0, 0.2), detail: `${Math.round(shortFrac * 100)}% of sentences are 8 words or fewer` },
   ];
 
   let score = features.reduce((a, f) => a + f.weight * f.value, 0);

@@ -14,6 +14,7 @@ import { rewritePhrases } from './transforms/phrases.js';
 import { applyContractions } from './transforms/contractions.js';
 import { swapSynonyms, alternativesFor } from './transforms/synonyms.js';
 import { improveRhythm } from './transforms/rhythm.js';
+import { applyVoice, trailingThough } from './transforms/voice.js';
 import { analyze } from './detector.js';
 import { diffWords } from './diff.js';
 
@@ -23,20 +24,23 @@ export const MODES = {
   subtle: {
     label: 'Subtle',
     description: 'Light touch. Removes AI-tell phrases and em dashes, adds some contractions. Keeps your wording.',
-    openerRate: 0.7, softPhraseRate: 0.35, contractionRate: 0.45, synonymRate: 0.1,
-    flipRate: 0.12, splitRate: 0.5, mergeRate: 0.3, dashToPeriod: 0.3,
+    openerRate: 0.7, softPhraseRate: 0.35, contractionRate: 0.45, synonymRate: 0.1, rarePick: 0,
+    flipRate: 0.12, splitRate: 0.5, mergeRate: 0.3, splitMin: 24, dashToPeriod: 0.3,
+    thoughRate: 0.15, frontRate: 0.1, fragmentRate: 0.15, asideRate: 0, exclaimRate: 0.3,
   },
   balanced: {
     label: 'Balanced',
     description: 'The default. Rewrites formal vocabulary, varies sentence length, contracts most verbs.',
-    openerRate: 0.9, softPhraseRate: 0.6, contractionRate: 0.75, synonymRate: 0.25,
-    flipRate: 0.25, splitRate: 0.7, mergeRate: 0.5, dashToPeriod: 0.3,
+    openerRate: 0.9, softPhraseRate: 0.6, contractionRate: 0.75, synonymRate: 0.3, rarePick: 0.3,
+    flipRate: 0.25, splitRate: 0.7, mergeRate: 0.5, splitMin: 21, dashToPeriod: 0.3,
+    thoughRate: 0.3, frontRate: 0.2, fragmentRate: 0.3, asideRate: 0.08, exclaimRate: 0.6,
   },
   stealth: {
     label: 'Stealth',
     description: 'Aggressive. Maximum rewording and restructuring. Proofread the result.',
-    openerRate: 1, softPhraseRate: 0.85, contractionRate: 0.95, synonymRate: 0.45,
-    flipRate: 0.4, splitRate: 0.85, mergeRate: 0.65, dashToPeriod: 0.35,
+    openerRate: 1, softPhraseRate: 0.85, contractionRate: 0.95, synonymRate: 0.5, rarePick: 0.6,
+    flipRate: 0.4, splitRate: 0.85, mergeRate: 0.65, splitMin: 17, dashToPeriod: 0.35,
+    thoughRate: 0.45, frontRate: 0.3, fragmentRate: 0.45, asideRate: 0.15, exclaimRate: 0.8,
   },
 };
 
@@ -58,9 +62,14 @@ function processSentences(sentences, rng, cfg, opts, stats, properNouns) {
     stats.fillerDropped += r.dropped;
     list = r.sentences;
   }
+  const usedOpeners = new Set();
   list = list.map((s) => {
     let out = s;
-    const o = rewriteOpener(out, rng, cfg.openerRate);
+    if (rng.chance(cfg.thoughRate)) {
+      const t = trailingThough(out);
+      if (t) { stats.voiceChanges++; return capitalizeFirst(tidy(rewritePhrases(t, rng, { softRate: cfg.softPhraseRate }).sentence)); }
+    }
+    const o = rewriteOpener(out, rng, cfg.openerRate, usedOpeners);
     if (o.changed) stats.openersRewritten++;
     out = o.sentence;
     const p = rewritePhrases(out, rng, { softRate: cfg.softPhraseRate });
@@ -69,11 +78,14 @@ function processSentences(sentences, rng, cfg, opts, stats, properNouns) {
     return out;
   });
   if (opts.rhythm) {
-    const r = improveRhythm(list, rng, { splitRate: cfg.splitRate, mergeRate: cfg.mergeRate, flipRate: cfg.flipRate, properNouns });
+    const r = improveRhythm(list, rng, { splitRate: cfg.splitRate, mergeRate: cfg.mergeRate, flipRate: cfg.flipRate, splitMin: cfg.splitMin, properNouns });
     stats.sentencesSplit += r.splits;
     stats.sentencesMerged += r.merges;
     stats.clausesFlipped += r.flips;
     list = r.sentences;
+    const v = applyVoice(list, rng, { frontRate: cfg.frontRate, fragmentRate: cfg.fragmentRate, asideRate: cfg.asideRate, exclaimRate: cfg.exclaimRate, properNouns });
+    stats.voiceChanges += v.fronted + v.fragments + v.asides;
+    list = v.sentences;
   }
   list = list.map((s) => {
     let out = s;
@@ -83,7 +95,7 @@ function processSentences(sentences, rng, cfg, opts, stats, properNouns) {
       out = c.sentence;
     }
     if (opts.synonyms) {
-      const sy = swapSynonyms(out, rng, { rate: cfg.synonymRate, properNouns });
+      const sy = swapSynonyms(out, rng, { rate: cfg.synonymRate, rarePick: cfg.rarePick, properNouns });
       stats.synonymsSwapped += sy.count;
       out = sy.sentence;
     }
@@ -116,6 +128,7 @@ export function humanize(input, options = {}) {
     sentencesSplit: 0,
     sentencesMerged: 0,
     clausesFlipped: 0,
+    voiceChanges: 0,
     fillerDropped: 0,
   };
   if (!input || !input.trim()) return { text: input || '', stats, seed, mode: opts.mode };

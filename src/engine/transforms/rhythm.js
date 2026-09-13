@@ -15,9 +15,9 @@ function lowerStart(sentence, properNouns) {
 }
 
 /** Try to break a long sentence at a natural clause boundary. */
-export function splitLongSentence(sentence, rng) {
+export function splitLongSentence(sentence, rng, minWords = 22) {
   const total = wordCount(sentence);
-  if (total < 22 || !/[.]$/.test(sentence)) return null;
+  if (total < minWords || !/[.]$/.test(sentence)) return null;
   const re = /, (and|but|so|yet|because|which) /g;
   const candidates = [];
   let m;
@@ -95,7 +95,7 @@ export function lengthStats(sentences) {
 /**
  * Increase burstiness: split long sentences, merge short ones, flip a clause now and then.
  */
-export function improveRhythm(sentences, rng, { splitRate = 0.7, mergeRate = 0.5, flipRate = 0.25, properNouns = new Set() } = {}) {
+export function improveRhythm(sentences, rng, { splitRate = 0.7, mergeRate = 0.5, flipRate = 0.25, splitMin = 22, properNouns = new Set() } = {}) {
   const out = [];
   let splits = 0;
   let merges = 0;
@@ -104,8 +104,8 @@ export function improveRhythm(sentences, rng, { splitRate = 0.7, mergeRate = 0.5
 
   for (const s of sentences) {
     const wc = wordCount(s);
-    if (wc >= 22 && (wc >= 40 || monotone || rng.chance(splitRate))) {
-      const parts = splitLongSentence(s, rng);
+    if (wc >= splitMin && (wc >= 40 || monotone || rng.chance(splitRate))) {
+      const parts = splitLongSentence(s, rng, splitMin);
       if (parts) { out.push(...parts); splits++; continue; }
     }
     out.push(s);

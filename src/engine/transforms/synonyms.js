@@ -7,7 +7,7 @@ const TOKEN_RE = /[A-Za-z][A-Za-z'’-]*/g;
  * Swap everyday words for near-synonyms at a given rate. Skips proper nouns,
  * protected placeholders, contractions and blocked contexts.
  */
-export function swapSynonyms(sentence, rng, { rate = 0.3, properNouns = new Set() } = {}) {
+export function swapSynonyms(sentence, rng, { rate = 0.3, rarePick = 0, properNouns = new Set() } = {}) {
   const index = synonymIndex();
   const tokens = [];
   let m;
@@ -51,7 +51,7 @@ export function swapSynonyms(sentence, rng, { rate = 0.3, properNouns = new Set(
     }
 
     if (key && rng.chance(rate)) {
-      const alt = rng.pick(alts);
+      const alt = rarePick && alts.length > 1 && rng.chance(rarePick) ? alts[alts.length - 1] : rng.pick(alts);
       out += sentence.slice(cursor, span.start) + matchCase(span.text, alt);
       cursor = span.end;
       count++;

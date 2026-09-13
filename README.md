@@ -9,6 +9,9 @@ An offline, rule-based **AI text humanizer** in the spirit of StealthWriter. Pas
 - **Punctuation**: em dashes and semicolons (the strongest punctuation tells) become commas or full stops.
 - **Rhythm**: long sentences are split at clause boundaries, short ones are joined, leading clauses are flipped, so sentence length varies the way human writing does ("burstiness").
 - **Contractions** and near-synonym swaps make word choice less predictable, which is what perplexity-based detectors measure.
+- **Voice**: a leading "However," can become a trailing "…, though."; time phrases move to the front ("In practice, …"); trailing qualifiers become fragments ("Especially at scale."); one sentence per paragraph may get a discourse marker ("Honestly, …"); long exclamations calm down.
+- **Direct phrasing**: "allows users to" becomes "lets users", "it is recommended that" becomes "you should", "the implementation of" becomes "rolling out", "one should" becomes "you should", and so on.
+- **No repeated connectors**: each replacement opener is used at most once per paragraph.
 - **Filler removal**: "Certainly!", "I hope this helps!", "As an AI language model" are dropped.
 - **Safe zones**: URLs, emails, code, `@handles`, `#tags`, and quoted text are never touched. Proper nouns are not swapped. List markers and paragraphs are preserved. Markdown decoration is stripped (optional).
 - **Built-in AI-likelihood score** with a per-signal breakdown, shown before and after.
@@ -57,7 +60,18 @@ const report = analyze(text); // { score: 0-100, label, features: [...] }
 | Em dashes & semicolons | density per 100 words |
 | Word length, personal voice, paragraph uniformity, repeated openings | minor signals |
 
-It is a guide for editing, **not** a replica of GPTZero, Turnitin, Originality.ai or any other detector. Those tools use language-model perplexity, which cannot be reproduced without a model. A rule-based rewrite removes the signals they key on and consistently lowers their scores, but no offline tool can guarantee a number. Always read the output: it changes wording, and you are responsible for the meaning.
+It is a guide for editing, **not** a replica of GPTZero, Turnitin, Originality.ai or any other detector.
+
+### What to expect from real detectors
+
+Commercial detectors score how *predictable* each word is to a language model. A rule-based rewrite cannot compute that, so it works indirectly: it removes the phrases those models find most predictable, breaks up uniform sentence shapes, and swaps in less expected words. That reliably lowers scores but does not guarantee a "human" verdict, especially on short, generic or highly formal text. Things that help:
+
+- Use **Stealth** and turn on **best of 4**; press **Regenerate** a few times and keep the version your detector likes.
+- Click flagged words in the result to swap them, or type your own replacement.
+- Add something only you could write: a concrete example, an opinion, a number, a first-person sentence. Detectors weigh specificity heavily and no tool can invent it for you.
+- Longer, more specific input humanizes better than short boilerplate.
+
+Tools such as StealthWriter or Undetectable use large models fine-tuned against detectors; matching them offline would need a local paraphrase model (for example via transformers.js), which this project deliberately does not ship. Always read the output: it changes wording, and you are responsible for the meaning.
 
 ## Project layout
 
@@ -72,7 +86,7 @@ src/engine/text.js                 protected spans, casing, a/an repair, tidy
 src/engine/diff.js                 word-level diff for change highlighting
 src/engine/dictionaries/           phrases, openers, contractions, synonyms
 src/engine/transforms/             one pass per file: markdown, punctuation, filler,
-                                   openers, phrases, contractions, synonyms, rhythm
+                                   openers, phrases, contractions, synonyms, rhythm, voice
 test/                              node --test suites
 ```
 
