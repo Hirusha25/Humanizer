@@ -19,16 +19,57 @@ export const SYSTEM_PROMPT = [
   'Reply with only the rewritten paragraph. No introduction, no notes, no quotation marks around it.',
 ].join(' ');
 
-export function buildMessages(paragraph) {
+/** Acceptable output length: within 20% of the original word count. */
+export const LENGTH_TOLERANCE = 0.2;
+export function lengthBounds(original) {
+  const w = wordCount(original);
+  return { words: w, min: Math.max(1, Math.ceil(w * (1 - LENGTH_TOLERANCE))), max: Math.max(2, Math.floor(w * (1 + LENGTH_TOLERANCE))) };
+}
+
+export function buildMessages(paragraph, { strict = false } = {}) {
+  const { words, min, max } = lengthBounds(paragraph);
+  const target = `The paragraph is ${words} words. Your rewrite must be between ${min} and ${max} words: same length, not longer.`;
+  const user = strict
+    ? `${paragraph.trim()}\n\n${target} Your previous attempt was the wrong length. Rewrite it again, keeping every fact, and output only the paragraph.`
+    : `${paragraph.trim()}\n\n(${target})`;
   return [
     { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: paragraph.trim() },
+    { role: 'user', content: user },
   ];
 }
 
-/** Generation budget for one paragraph. */
+/** Generation budget for one paragraph: about 1.6 tokens per source word, so output cannot double. */
 export function maxTokensFor(paragraph) {
-  return Math.min(1024, Math.round(wordCount(paragraph) * 2.2) + 48);
+  return Math.min(1024, Math.round(wordCount(paragraph) * 1.6) + 24);
+}
+
+/** 'ok' | 'short' | 'long' relative to the original. */
+export function lengthStatus(text, original) {
+  const { min, max } = lengthBounds(original);
+  const got = wordCount(text);
+  if (got < min) return 'short';
+  if (got > max) return 'long';
+  return 'ok';
+}
+
+/** Cut text down to at most `maxWords`, preferring a sentence boundary. */
+export function trimToWords(text, maxWords) {
+  const tokens = text.match(/\S+\s*/g) || [];
+  if (tokens.length <= maxWords) return text.trim();
+  const head = tokens.slice(0, maxWords).join('');
+  const lastEnd = Math.max(head.lastIndexOf('. '), head.lastIndexOf('? '), head.lastIndexOf('! '), head.search(/[.!?]["”)]?\s*$/));
+  if (lastEnd > head.length * 0.5) return head.slice(0, lastEnd + 1).trim();
+  return head.trim().replace(/[,;:]?$/, '.');
+}
+
+/** Drop a trailing unfinished sentence (from a hard token cap). */
+export function dropUnfinishedSentence(text) {
+  const s = text.trim();
+  if (/[.!?]["”')\]]*$/.test(s)) return s;
+  const idx = Math.max(s.lastIndexOf('. '), s.lastIndexOf('? '), s.lastIndexOf('! '));
+  if (idx <= 0) return s;
+  const kept = s.slice(0, idx + 1);
+  return wordCount(kept) >= wordCount(s) * 0.3 ? kept : s;
 }
 
 /**
@@ -66,10 +107,11 @@ export function cleanModelOutput(raw, original) {
   s = s.replace(/^["“]([\s\S]+)["”]$/, '$1').trim();
   s = s.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/^\s*[-*•]\s+/gm, '');
   s = s.replace(/\s*[—–]\s*/g, ', ').replace(/[ \t]+/g, ' ').replace(/\n{2,}/g, '\n').trim();
+  s = dropUnfinishedSentence(s);
   if (!s || REFUSAL.test(s)) return null;
   const want = wordCount(original);
   const got = wordCount(s);
-  if (want >= 8 && (got < want * 0.5 || got > want * 2.2)) return null;
+  if (want >= 8 && (got < want * 0.4 || got > want * 2.5)) return null;
   // The model sometimes echoes the input unchanged.
   if (s.replace(/\W+/g, '').toLowerCase() === original.replace(/\W+/g, '').toLowerCase()) return null;
   return s;

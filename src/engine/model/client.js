@@ -1,5 +1,5 @@
 // Main-thread wrapper around the model worker with a small promise API.
-import { buildMessages, maxTokensFor, cleanModelOutput, splitForModel, joinUnits, DEFAULT_MODEL } from './prompt.js';
+import { buildMessages, maxTokensFor, cleanModelOutput, splitForModel, joinUnits, lengthStatus, lengthBounds, trimToWords, DEFAULT_MODEL } from './prompt.js';
 
 export { MODELS, DEFAULT_MODEL } from './prompt.js';
 
@@ -64,12 +64,15 @@ export class LocalModel {
   }
 
   /** Rewrite one paragraph. Resolves with the raw model text (already streamed via onToken). */
-  generate(paragraph, { onToken } = {}) {
+  generate(paragraph, { onToken, strict = false, temperature } = {}) {
     if (!this.ready) return Promise.reject(new Error('Model is not loaded'));
     const id = ++this.seq;
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject, onToken });
-      this.worker.postMessage({ type: 'generate', id, messages: buildMessages(paragraph), max_new_tokens: maxTokensFor(paragraph) });
+      this.worker.postMessage({
+        type: 'generate', id, messages: buildMessages(paragraph, { strict }), max_new_tokens: maxTokensFor(paragraph),
+        ...(temperature != null ? { temperature } : {}),
+      });
     });
   }
 
@@ -94,16 +97,29 @@ export async function deepRewrite(text, model, { onUnit, fallback = (t) => t, si
   const rewritten = [];
   let used = 0;
   let fell = 0;
+  let retried = 0;
+  let trimmed = 0;
   let tps = 0;
   for (let i = 0; i < units.length; i++) {
     const u = units[i];
     if (u.kind !== 'rewrite') { rewritten.push(null); continue; }
     if (signal?.aborted) throw new Error('Cancelled');
-    const res = await model.generate(u.text, { onToken: (t) => onUnit?.(i, t, units) });
+    let res = await model.generate(u.text, { onToken: (t) => onUnit?.(i, t, units) });
     if (res.tps) tps = res.tps;
-    const clean = res.interrupted ? null : cleanModelOutput(res.text, u.text);
+    let clean = res.interrupted ? null : cleanModelOutput(res.text, u.text);
+    // Length outside the band: one stricter, cooler retry.
+    if (clean && lengthStatus(clean, u.text) !== 'ok' && !signal?.aborted) {
+      retried++;
+      res = await model.generate(u.text, { onToken: (t) => onUnit?.(i, t, units), strict: true, temperature: 0.6 });
+      if (res.tps) tps = res.tps;
+      const second = res.interrupted ? null : cleanModelOutput(res.text, u.text);
+      if (second && lengthStatus(second, u.text) === 'ok') clean = second;
+      else if (second && lengthStatus(second, u.text) === 'long') clean = second;
+    }
+    if (clean && lengthStatus(clean, u.text) === 'long') { clean = trimToWords(clean, lengthBounds(u.text).max); trimmed++; }
+    if (clean && lengthStatus(clean, u.text) === 'short') clean = null;
     if (clean) { rewritten.push(clean); used++; } else { rewritten.push(fallback(u.text)); fell++; }
     onUnit?.(i, rewritten[i], units, true);
   }
-  return { text: joinUnits(units, rewritten), units, rewrittenUnits: used, fallbackUnits: fell, tps };
+  return { text: joinUnits(units, rewritten), units, rewrittenUnits: used, fallbackUnits: fell, retriedUnits: retried, trimmedUnits: trimmed, tps };
 }

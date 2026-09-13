@@ -286,7 +286,10 @@ async function runDeep(text) {
     const m = MODELS.find((x) => x.id === model.modelId);
     finalize(text, res, `Rewritten by ${m ? m.label : model.modelId} on ${model.device === 'webgpu' ? 'WebGPU' : 'CPU'} in ${secs}s` +
       (deep.tps ? ` (${deep.tps.toFixed(1)} tokens/s)` : '') + `, ${deep.rewrittenUnits} paragraph${deep.rewrittenUnits === 1 ? '' : 's'} by the model` +
-      (deep.fallbackUnits ? `, ${deep.fallbackUnits} by rules` : '') + '. ');
+      (deep.fallbackUnits ? `, ${deep.fallbackUnits} by rules` : '') +
+      (deep.retriedUnits ? `, ${deep.retriedUnits} retried for length` : '') +
+      (deep.trimmedUnits ? `, ${deep.trimmedUnits} trimmed` : '') +
+      `. Length ${res.stats.inputWords} → ${res.stats.outputWords} words. `);
     els.modelStatus.textContent = `Done. Regenerate for a different rewrite.`;
   } catch (e) {
     console.error(e);
