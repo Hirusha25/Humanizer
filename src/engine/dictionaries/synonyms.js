@@ -111,8 +111,8 @@ export const SYNONYM_GROUPS = [
   ['information', 'details', 'facts', 'info'],
   ['kids', 'children', 'youngsters'],
   ['boss', 'manager', 'supervisor'],
-  ['team', 'group', 'crew', 'squad'],
-  ['teams', 'groups', 'crews', 'squads'],
+  ['team', 'group'],
+  ['teams', 'groups'],
   ['story', 'tale', 'account', 'narrative'],
   ['stories', 'tales', 'accounts', 'narratives'],
   ['great', 'fantastic', 'excellent', 'terrific'],
@@ -233,7 +233,7 @@ export const CONTEXT_BLOCKS = [
   ['problem', /\bno problem\b|\bproblem (?:solving|solver|set|statement)\b/i],
   ['increase', /\bincrease (?:in|of)\b|\b(?:an|the|price|pay|tax|rate|salary) increase\b/i],
   ['decrease', /\bdecrease (?:in|of)\b|\b(?:a|the|price|rate) decrease\b/i],
-  ['idea', /\bno idea\b|\bidea (?:of|behind|what|how)\b/i],
+  ['idea', /\b(?:no|good|great|bad|any|the) idea\b|\bidea (?:of|behind|what|how)\b/i],
   ['information', /\binformation (?:technology|system|systems|security|age|theory|architecture)\b/i],
 ];
 

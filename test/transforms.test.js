@@ -104,3 +104,8 @@ test('filler sentences are dropped', () => {
   assert.deepEqual(r.sentences, ['The plan has three steps.']);
   assert.equal(r.dropped, 2);
 });
+
+test('semicolon before a connector becomes a sentence break', () => {
+  const r = normalizePunctuation('The U.S. team agreed; however, the U.K. team did not.', rng());
+  assert.equal(r, 'The U.S. team agreed. However, the U.K. team did not.');
+});

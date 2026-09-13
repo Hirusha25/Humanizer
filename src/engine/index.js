@@ -149,7 +149,9 @@ export function humanizeBest(input, options = {}, tries = 4) {
     const seed = typeof baseSeed === 'number' ? baseSeed + i * 7919 : `${baseSeed}-${i}`;
     const r = humanize(input, { ...options, seed });
     const score = analyze(r.text).score;
-    if (!best || score < best.score) best = { ...r, score };
+    // Lowest score wins; within a few points prefer the attempt that changed more.
+    const better = !best || score < best.score - 3 || (score <= best.score + 3 && r.stats.changedWords > best.stats.changedWords);
+    if (better) best = { ...r, score };
   }
   return best;
 }
